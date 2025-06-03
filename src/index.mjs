@@ -43,8 +43,39 @@ client.on(Events.MessageCreate, async message => {
       await message.reply("Summarizing...");
 
       const summary = await chat(chatLog);
+      const { text: summaryText } = summary;
 
-      await message.reply(summary.text);
+    if (summaryText.length > 2000) {
+      // segmentated the response into 2000 character chunks but in full sentences
+      const segments = [];
+      let currentSegment = '';
+      
+      // Split response into sentences using regex that handles multiple punctuation cases
+      const sentences = summaryText.match(/[^.!?]+[.!?]+/g) || [summaryText];
+      
+      for (const sentence of sentences) {
+        // If adding this sentence would exceed 2000 chars, start a new segment
+        if ((currentSegment + sentence).length > 2000) {
+          segments.push(currentSegment);
+          currentSegment = sentence;
+        } else {
+          currentSegment += sentence;
+        }
+      }
+      
+      // Push the last segment if it has content
+      if (currentSegment) {
+        segments.push(currentSegment);
+      }
+      
+      // Send each segment as a separate message
+      for (const segment of segments) {
+        await message.reply(segment);
+      }
+      return; // Exit early since we've handled the response
+    }
+
+      await message.reply(summaryText);
     } else {
     const response = await chat(contentWithoutMention);
 
