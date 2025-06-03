@@ -15,5 +15,5 @@ export default async function chat(message) {
         ]
     }
   });
-  return response.text;
+  return response;
 }

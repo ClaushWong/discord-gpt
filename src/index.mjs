@@ -29,52 +29,58 @@ client.on(Events.MessageCreate, async message => {
       .trim()
       .toLowerCase(); // Convert to lowercase for case-insensitive matching
 
-    // Check if the message contains "hello"
-    if (contentWithoutMention.includes('hello')) {
-      console.log(`Received message containing hello: ${contentWithoutMention}`);
-      // Get the user's display name (nickname if set, otherwise username)
-      const userName = message.member?.nickname || message.author.username;
-      await message.reply(`Hello ${userName}! 👋`);
-    }
 
-    if (contentWithoutMention.startsWith('gemini')) {
-      const realMessage = contentWithoutMention.split(":")[1].trim();
-      console.log(`Received message containing gemini: ${realMessage}`); 
-      await message.reply('Thinking...'); 
-      const response = await chat(realMessage);
+    if (contentWithoutMention == "!summarize") {
+      // ! retrieve chat log from the channel
+      // ! summarize the chat log with the help of gemini
+
+      const channel = message.channel;
+      const messages = await channel.messages.fetch({ limit: 100 });
+
+      // [timestamp] [username]: [message]
+      const chatLog = messages.map(message => `${message.createdAt} ${message.author.username}: ${message.content}`).join('\n');
+
+      await message.reply("Summarizing...");
+
+      const summary = await chat(chatLog);
+
+      await message.reply(summary.text);
+    } else {
+    const response = await chat(contentWithoutMention);
+
+    const { text: responseText } = response;
+    
+    if (responseText.length > 2000) {
+      // segmentated the response into 2000 character chunks but in full sentences
+      const segments = [];
+      let currentSegment = '';
       
-      if (response.length > 2000) {
-        // segmentated the response into 2000 character chunks but in full sentences
-        const segments = [];
-        let currentSegment = '';
-        
-        // Split response into sentences using regex that handles multiple punctuation cases
-        const sentences = response.match(/[^.!?]+[.!?]+/g) || [response];
-        
-        for (const sentence of sentences) {
-          // If adding this sentence would exceed 2000 chars, start a new segment
-          if ((currentSegment + sentence).length > 2000) {
-            segments.push(currentSegment);
-            currentSegment = sentence;
-          } else {
-            currentSegment += sentence;
-          }
-        }
-        
-        // Push the last segment if it has content
-        if (currentSegment) {
+      // Split response into sentences using regex that handles multiple punctuation cases
+      const sentences = responseText.match(/[^.!?]+[.!?]+/g) || [responseText];
+      
+      for (const sentence of sentences) {
+        // If adding this sentence would exceed 2000 chars, start a new segment
+        if ((currentSegment + sentence).length > 2000) {
           segments.push(currentSegment);
+          currentSegment = sentence;
+        } else {
+          currentSegment += sentence;
         }
-        
-        // Send each segment as a separate message
-        for (const segment of segments) {
-          await message.reply(segment);
-        }
-        return; // Exit early since we've handled the response
       }
       
-      await message.reply(response);
-
+      // Push the last segment if it has content
+      if (currentSegment) {
+        segments.push(currentSegment);
+      }
+      
+      // Send each segment as a separate message
+      for (const segment of segments) {
+        await message.reply(segment);
+      }
+      return; // Exit early since we've handled the response
+    }
+    
+    await message.reply(responseText);
     }
   }
 });
