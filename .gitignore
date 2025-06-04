@@ -35,4 +35,7 @@ pids
 .idea/
 .vscode/
 *.swp
-*.swo 
+*.swo
+
+# Storage directory
+/storage/ 
